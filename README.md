@@ -66,6 +66,12 @@ You can type either a full language name (case-insensitive) or an
 [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) code
 directly (e.g. `es`, `fr`, `ja`).
 
+## Running the tests
+
+```bash
+pytest
+```
+
 ## Notes
 
 - Language is detected from the **track title and artist names**, which works
