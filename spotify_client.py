@@ -67,7 +67,8 @@ def find_playlist_by_name(sp: spotipy.Spotify, name: str) -> str | None:
     offset = 0
     user_id = sp.me()["id"]
     while True:
-        response = sp.current_user_playlists(limit=limit, offset=offset)
+        # Use _get directly; the current_user_playlists() wrapper has scope issues
+        response = sp._get("me/playlists", limit=limit, offset=offset)
         items = response.get("items", [])
         if not items:
             break
@@ -86,8 +87,14 @@ def fetch_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> set[str]
     limit = 100
     offset = 0
     while True:
-        response = sp.playlist_items(
-            playlist_id, fields="items(track(uri)),next", limit=limit, offset=offset
+        # Use _get directly; the playlist_items() wrapper has OAuth scope issues
+        # with some Spotify app configurations (mirrors the approach used above
+        # for current_user_playlists)
+        response = sp._get(
+            f"playlists/{playlist_id}/tracks",
+            fields="items(track(uri)),next",
+            limit=limit,
+            offset=offset,
         )
         items = response.get("items", [])
         if not items:
