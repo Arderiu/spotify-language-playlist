@@ -7,7 +7,7 @@ DetectorFactory.seed = 0
 
 # Map of user-friendly language names to ISO 639-1 codes.
 # Covers the most common languages; users can still type an ISO code directly.
-LANGUAGE_NAME_TO_CODE = {
+LANGUAGE_NAME_TO_CODE: dict[str, str] = {
     "afrikaans": "af",
     "arabic": "ar",
     "bulgarian": "bg",
@@ -63,6 +63,15 @@ LANGUAGE_NAME_TO_CODE = {
     "simplified chinese": "zh-cn",
     "traditional chinese": "zh-tw",
 }
+
+# All ISO 639-1 codes recognized by this tool
+VALID_LANGUAGE_CODES: set[str] = set(LANGUAGE_NAME_TO_CODE.values())
+
+
+def is_valid_language_input(user_input: str) -> bool:
+    """Return True if *user_input* is a recognized language name or ISO 639-1 code."""
+    normalised = user_input.strip().lower()
+    return normalised in LANGUAGE_NAME_TO_CODE or normalised in VALID_LANGUAGE_CODES
 
 
 def resolve_language_code(user_input: str) -> str:
