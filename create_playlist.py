@@ -18,7 +18,7 @@ Requirements:
 
 import sys
 
-from language_utils import filter_tracks_by_language, resolve_language_code
+from language_utils import filter_tracks_by_language, is_valid_language_input, resolve_language_code
 from spotify_client import (
     add_tracks_to_playlist,
     create_playlist,
@@ -40,6 +40,13 @@ def main() -> None:
         sys.exit(1)
 
     language_code = resolve_language_code(language_input)
+    if not is_valid_language_input(language_input):
+        print(
+            f"Error: {language_input!r} is not a recognized language name or ISO 639-1 code. "
+            "Please enter a language name (e.g. Spanish, French) or an ISO 639-1 code (e.g. es, fr).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     print(f"Targeting language code: {language_code!r}")
 
     liked_songs = fetch_liked_songs(sp)
