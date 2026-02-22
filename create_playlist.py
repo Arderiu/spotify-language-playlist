@@ -19,9 +19,9 @@ Requirements:
 import os
 import sys
 
+import spotipy
 from dotenv import load_dotenv
 from langdetect import DetectorFactory, LangDetectException, detect
-import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
 # Make language detection deterministic across runs
@@ -94,7 +94,11 @@ def get_spotify_client() -> spotipy.Spotify:
     """Authenticate with Spotify and return an authorised client."""
     load_dotenv()
 
-    required_vars = ("SPOTIPY_CLIENT_ID", "SPOTIPY_CLIENT_SECRET", "SPOTIPY_REDIRECT_URI")
+    required_vars = (
+        "SPOTIPY_CLIENT_ID",
+        "SPOTIPY_CLIENT_SECRET",
+        "SPOTIPY_REDIRECT_URI",
+    )
     missing = [v for v in required_vars if not os.getenv(v)]
     if missing:
         print(
@@ -198,27 +202,31 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
 
 def create_playlist(sp: spotipy.Spotify, name: str) -> str:
     """Create a new private playlist for the current user and return its ID."""
-    user_id = sp.current_user()["id"]
-    playlist = sp.user_playlist_create(
-        user=user_id,
-        name=name,
-        public=False,
-        description=f"Songs in {name} – created by spotify-language-playlist",
-    )
+    payload = {
+        "name": name,
+        "public": False,
+        "description": f"Songs in {name} – created by spotify-language-playlist",
+    }
+    playlist = sp._post("me/playlists", payload=payload)
     return playlist["id"]
 
 
-def add_tracks_to_playlist(sp: spotipy.Spotify, playlist_id: str, track_uris: list[str]) -> None:
+def add_tracks_to_playlist(
+    sp: spotipy.Spotify, playlist_id: str, track_uris: list[str]
+) -> None:
     """Add tracks to a playlist in batches of 100 (Spotify API limit)."""
     batch_size = 100
     for i in range(0, len(track_uris), batch_size):
-        sp.playlist_add_items(playlist_id, track_uris[i : i + batch_size])
+        batch = track_uris[i : i + batch_size]
+        sp._post(f"playlists/{playlist_id}/items", payload={"uris": batch})
 
 
 def main() -> None:
     sp = get_spotify_client()
 
-    language_input = input("Enter the language for your playlist (e.g. Spanish, French): ").strip()
+    language_input = input(
+        "Enter the language for your playlist (e.g. Spanish, French): "
+    ).strip()
     if not language_input:
         print("No language entered. Exiting.", file=sys.stderr)
         sys.exit(1)
@@ -235,7 +243,9 @@ def main() -> None:
     matching_uris = filter_tracks_by_language(liked_songs, language_code)
 
     if not matching_uris:
-        print(f"No liked songs detected as {language_input!r}. No playlist was created.")
+        print(
+            f"No liked songs detected as {language_input!r}. No playlist was created."
+        )
         return
 
     playlist_name = language_input.strip().title()
