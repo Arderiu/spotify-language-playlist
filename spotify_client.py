@@ -61,6 +61,47 @@ def fetch_liked_songs(sp: spotipy.Spotify) -> list[dict]:
     return tracks
 
 
+def find_playlist_by_name(sp: spotipy.Spotify, name: str) -> str | None:
+    """Return the ID of the first user playlist whose name matches *name*, or None."""
+    limit = 50
+    offset = 0
+    user_id = sp.me()["id"]
+    while True:
+        response = sp.current_user_playlists(limit=limit, offset=offset)
+        items = response.get("items", [])
+        if not items:
+            break
+        for playlist in items:
+            if playlist.get("owner", {}).get("id") == user_id and playlist.get("name") == name:
+                return playlist["id"]
+        if response.get("next") is None:
+            break
+        offset += limit
+    return None
+
+
+def fetch_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> set[str]:
+    """Return the set of track URIs already present in *playlist_id*."""
+    uris: set[str] = set()
+    limit = 100
+    offset = 0
+    while True:
+        response = sp.playlist_items(
+            playlist_id, fields="items(track(uri)),next", limit=limit, offset=offset
+        )
+        items = response.get("items", [])
+        if not items:
+            break
+        for item in items:
+            uri = (item.get("track") or {}).get("uri")
+            if uri:
+                uris.add(uri)
+        if response.get("next") is None:
+            break
+        offset += limit
+    return uris
+
+
 def create_playlist(sp: spotipy.Spotify, name: str) -> str:
     """Create a new private playlist for the current user and return its ID."""
     payload = {

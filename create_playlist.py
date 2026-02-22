@@ -23,6 +23,8 @@ from spotify_client import (
     add_tracks_to_playlist,
     create_playlist,
     fetch_liked_songs,
+    fetch_playlist_track_uris,
+    find_playlist_by_name,
     get_spotify_client,
 )
 
@@ -55,11 +57,23 @@ def main() -> None:
         return
 
     playlist_name = language_input.strip().title()
-    print(f"Creating playlist '{playlist_name}' with {len(matching_uris)} songs…")
-    playlist_id = create_playlist(sp, playlist_name)
-    add_tracks_to_playlist(sp, playlist_id, matching_uris)
-
-    print(f"Done! Playlist '{playlist_name}' created with {len(matching_uris)} tracks.")
+    playlist_id = find_playlist_by_name(sp, playlist_name)
+    if playlist_id:
+        print(f"Playlist '{playlist_name}' already exists. Checking for new songs to add…")
+        existing_uris = fetch_playlist_track_uris(sp, playlist_id)
+        new_uris = [uri for uri in matching_uris if uri not in existing_uris]
+        if not new_uris:
+            print(f"All {len(matching_uris)} detected song(s) are already in the playlist. Nothing to add.")
+            print(f"Open it at: https://open.spotify.com/playlist/{playlist_id}")
+            return
+        print(f"Adding {len(new_uris)} new song(s) to '{playlist_name}'…")
+        add_tracks_to_playlist(sp, playlist_id, new_uris)
+        print(f"Done! Added {len(new_uris)} new track(s) to '{playlist_name}'.")
+    else:
+        print(f"Creating playlist '{playlist_name}' with {len(matching_uris)} songs…")
+        playlist_id = create_playlist(sp, playlist_name)
+        add_tracks_to_playlist(sp, playlist_id, matching_uris)
+        print(f"Done! Playlist '{playlist_name}' created with {len(matching_uris)} tracks.")
     print(f"Open it at: https://open.spotify.com/playlist/{playlist_id}")
 
 
