@@ -67,7 +67,8 @@ def find_playlist_by_name(sp: spotipy.Spotify, name: str) -> str | None:
     offset = 0
     user_id = sp.me()["id"]
     while True:
-        response = sp.current_user_playlists(limit=limit, offset=offset)
+        # Use _get directly; the current_user_playlists() wrapper has scope issues
+        response = sp._get("me/playlists", limit=limit, offset=offset)
         items = response.get("items", [])
         if not items:
             break
