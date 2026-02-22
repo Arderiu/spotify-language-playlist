@@ -1,5 +1,7 @@
 """Tests for language_utils module."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from language_utils import (
@@ -7,6 +9,7 @@ from language_utils import (
     VALID_LANGUAGE_CODES,
     detect_language,
     filter_tracks_by_language,
+    get_lyrics,
     is_valid_language_input,
     resolve_language_code,
 )
@@ -86,6 +89,59 @@ class TestDetectLanguage:
         result = detect_language(track)
         assert result is None or isinstance(result, str)
 
+    def test_uses_lyrics_from_genius_when_provided(self):
+        mock_genius = MagicMock()
+        mock_song = MagicMock()
+        mock_song.lyrics = "Hola mundo esto es una canción en español muy bonita"
+        mock_genius.search_song.return_value = mock_song
+
+        track = {"track": {"name": "Test Song", "artists": [{"name": "Artista"}]}}
+        result = detect_language(track, genius=mock_genius)
+        mock_genius.search_song.assert_called_once_with("Test Song", "Artista")
+        assert result == "es"
+
+    def test_falls_back_to_title_when_lyrics_not_found(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.return_value = None
+
+        track = {"track": {"name": "Hello beautiful wonderful world today", "artists": [{"name": "Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+        assert result == "en"
+
+    def test_falls_back_to_title_when_genius_raises(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.side_effect = Exception("network error")
+
+        track = {"track": {"name": "Hello beautiful wonderful world today", "artists": [{"name": "Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+        assert result == "en"
+
+
+class TestGetLyrics:
+    def test_returns_lyrics_when_song_found(self):
+        mock_genius = MagicMock()
+        mock_song = MagicMock()
+        mock_song.lyrics = "Some lyrics here"
+        mock_genius.search_song.return_value = mock_song
+
+        result = get_lyrics(mock_genius, "Song Title", "Artist Name")
+        assert result == "Some lyrics here"
+        mock_genius.search_song.assert_called_once_with("Song Title", "Artist Name")
+
+    def test_returns_none_when_song_not_found(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.return_value = None
+
+        result = get_lyrics(mock_genius, "Unknown Song", "Unknown Artist")
+        assert result is None
+
+    def test_returns_none_on_exception(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.side_effect = Exception("API error")
+
+        result = get_lyrics(mock_genius, "Song", "Artist")
+        assert result is None
+
 
 class TestFilterTracksByLanguage:
     def _make_track(self, name: str, artist: str, uri: str) -> dict:
@@ -118,3 +174,13 @@ class TestFilterTracksByLanguage:
         result_cn = filter_tracks_by_language([track_cn], "zh-cn")
         result_tw = filter_tracks_by_language([track_cn], "zh-tw")
         assert result_cn == result_tw
+
+    def test_uses_genius_client_for_lyrics_detection(self):
+        mock_genius = MagicMock()
+        mock_song = MagicMock()
+        mock_song.lyrics = "Hola mundo esto es una canción en español muy bonita y hermosa"
+        mock_genius.search_song.return_value = mock_song
+
+        tracks = [self._make_track("Test Song", "Artista", "uri:es")]
+        result = filter_tracks_by_language(tracks, "es", genius=mock_genius)
+        assert "uri:es" in result

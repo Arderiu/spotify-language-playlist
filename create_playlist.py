@@ -7,16 +7,24 @@ Usage:
 
 The script will prompt you for a language name (e.g. "Spanish", "French"),
 fetch all your Spotify liked songs, detect the language of each track using
-the song title and artist names, and create a new playlist containing only
-the tracks that match the requested language.
+lyrics from the Genius API (falling back to song title and artist names), and
+create a new playlist containing only the tracks that match the requested
+language.
 
 Requirements:
     - A Spotify developer application (https://developer.spotify.com/dashboard)
-    - A .env file with SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET, and
-      SPOTIPY_REDIRECT_URI set (copy .env.example and fill in your values)
+    - A Genius API client (https://genius.com/api-clients) for accurate lyrics-based
+      language detection
+    - A .env file with SPOTIPY_CLIENT_ID, SPOTIPY_CLIENT_SECRET,
+      SPOTIPY_REDIRECT_URI, and GENIUS_ACCESS_TOKEN set
+      (copy .env.example and fill in your values)
 """
 
+import os
 import sys
+
+import lyricsgenius
+from dotenv import load_dotenv
 
 from language_utils import filter_tracks_by_language, is_valid_language_input, resolve_language_code
 from spotify_client import (
@@ -30,7 +38,28 @@ from spotify_client import (
 
 
 def main() -> None:
+    load_dotenv()
     sp = get_spotify_client()
+
+    genius_token = os.getenv("GENIUS_ACCESS_TOKEN")
+    if genius_token:
+        try:
+            genius = lyricsgenius.Genius(genius_token, verbose=False, remove_section_headers=True)
+        except Exception as exc:
+            print(
+                f"Warning: Failed to initialize Genius client ({exc}). "
+                "Language detection will fall back to using song titles and artist names.",
+                file=sys.stderr,
+            )
+            genius = None
+    else:
+        print(
+            "Warning: GENIUS_ACCESS_TOKEN is not set. Language detection will fall back to "
+            "using song titles and artist names, which is less accurate.\n"
+            "Add your token to the .env file (see .env.example).",
+            file=sys.stderr,
+        )
+        genius = None
 
     language_input = input(
         "Enter the language for your playlist (e.g. Spanish, French): "
@@ -55,7 +84,7 @@ def main() -> None:
         return
 
     print(f"Detecting languages across {len(liked_songs)} songs…")
-    matching_uris = filter_tracks_by_language(liked_songs, language_code)
+    matching_uris = filter_tracks_by_language(liked_songs, language_code, genius=genius)
 
     if not matching_uris:
         print(
