@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from spotipy.oauth2 import SpotifyOAuth
 
 # Scopes required to read liked songs and manage playlists
-SPOTIFY_SCOPES = "user-library-read playlist-read-private playlist-modify-public playlist-modify-private"
+SPOTIFY_SCOPES = "user-library-read playlist-modify-public playlist-modify-private"
 
 
 def get_spotify_client() -> spotipy.Spotify:
