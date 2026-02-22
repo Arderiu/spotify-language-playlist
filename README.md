@@ -12,7 +12,7 @@ containing only the tracks that match the language you specify.
 
 - Python 3.10 or later
 - A [Spotify developer application](https://developer.spotify.com/dashboard)
-  with the redirect URI set to `https://localhost:8888/callback`
+  with the redirect URI set to `http://127.0.0.1:8888/callback`
 
 ## Setup
 
@@ -35,17 +35,17 @@ containing only the tracks that match the language you specify.
    ```
    SPOTIPY_CLIENT_ID=<your client id>
    SPOTIPY_CLIENT_SECRET=<your client secret>
-   SPOTIPY_REDIRECT_URI=https://localhost:8888/callback
+   SPOTIPY_REDIRECT_URI=http://127.0.0.1:8888/callback
    ```
 
    > You can find your client ID and secret in the Spotify developer dashboard
    > under your application's settings.  Make sure the redirect URI you enter
    > there matches the one in `.env`.
    >
-   > **Note:** Spotify requires HTTPS redirect URIs.  When the OAuth flow
-   > redirects to `https://localhost`, your browser may show a certificate
-   > warning because localhost does not have a trusted SSL certificate.  You
-   > can safely accept / bypass that warning to complete the authorisation.
+   > **Note:** Spotify accepts `http://` redirect URIs for loopback addresses
+   > such as `127.0.0.1`.  See the
+   > [Redirect URI guide](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri)
+   > in the Spotify developer documentation for details.
 
 ## Usage
 
