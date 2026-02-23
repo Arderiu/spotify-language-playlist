@@ -1,5 +1,10 @@
 """Language detection utilities for spotify-language-playlist."""
 
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import lyricsgenius
 from langdetect import DetectorFactory, LangDetectException, detect
 
 # Make language detection deterministic across runs
@@ -86,12 +91,30 @@ def resolve_language_code(user_input: str) -> str:
     return LANGUAGE_NAME_TO_CODE.get(normalised, normalised)
 
 
-def detect_language(track: dict) -> str | None:
+def get_genius_client() -> lyricsgenius.Genius | None:
+    """Return a Genius client if GENIUS_ACCESS_TOKEN is set, otherwise None."""
+    token = os.getenv("GENIUS_ACCESS_TOKEN")
+    if not token:
+        return None
+    return lyricsgenius.Genius(token, verbose=False, remove_section_headers=True)
+
+
+def detect_language(track: dict, lyrics: str | None = None) -> str | None:
     """
-    Detect the language of a track from its name, album name, and artist names.
+    Detect the language of a track.
+
+    If *lyrics* is provided, detect from those first. Otherwise fall back to
+    detecting from the track name, album name, and artist names.
 
     Returns an ISO 639-1 language code, or None if detection fails.
     """
+    if lyrics:
+        try:
+            return detect(lyrics)
+        except LangDetectException:
+            # fall through to metadata-based detection
+            pass
+
     track_info = track.get("track", {})
     song_name = track_info.get("name", "")
     album_name = track_info.get("album", {}).get("name", "")
@@ -111,8 +134,9 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
     """
     Return Spotify track URIs whose detected language matches *language_code*.
 
-    Chinese variants (zh-cn / zh-tw) are treated as equivalent when the user
-    requests either "zh-cn" or "zh-tw".
+    This implementation will perform a small number of concurrent Genius
+    lookups (if a GENIUS_ACCESS_TOKEN is configured) to speed up detection for
+    tracks where lyrics are available. There is no persistent caching.
     """
     matching_uris = []
     chinese_codes = {"zh-cn", "zh-tw"}
@@ -120,11 +144,57 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
     total = len(tracks)
     matched_count = 0
 
-    # Always show progress
+    genius = get_genius_client()
+
+    # If we have a Genius client, fetch lyrics concurrently for tracks that
+    # have a title and artist. We keep a simple aligned list of lyrics per track
+    # index; missing entries remain None and detection falls back to metadata.
+    lyrics_list: list[str | None] = [None] * total
+    if genius is not None and total:
+        max_workers = 5
+
+        def _safe_search(title: str, artist: str) -> str | None:
+            try:
+                song = genius.search_song(title, artist)
+                return getattr(song, "lyrics", None) if song else None
+            except Exception:
+                return None
+
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {}
+            for idx, track in enumerate(tracks):
+                ti = track.get("track", {})
+                title = ti.get("name", "")
+                artists = ti.get("artists", [])
+                primary = artists[0].get("name", "") if artists else ""
+                if title and primary:
+                    futures[ex.submit(_safe_search, title, primary)] = idx
+
+            # Show progress while fetching lyrics concurrently
+            total_fetch = len(futures)
+            completed = 0
+            start = time.perf_counter()
+            for fut in as_completed(futures):
+                idx = futures[fut]
+                try:
+                    lyrics_list[idx] = fut.result()
+                except Exception:
+                    lyrics_list[idx] = None
+                completed += 1
+                elapsed = time.perf_counter() - start
+                print(
+                    f"\rFetching lyrics from Genius: {completed}/{total_fetch} completed (elapsed {elapsed:.1f}s)",
+                    end="",
+                    flush=True,
+                )
+            print()  # newline after fetch progress
+
+    # Progress header
     print(f"Detecting languages across {total} songs…", end="", flush=True)
 
     for idx, track in enumerate(tracks):
-        detected = detect_language(track)
+        lyrics = lyrics_list[idx] if idx < len(lyrics_list) else None
+        detected = detect_language(track, lyrics)
 
         if detected is None:
             print(

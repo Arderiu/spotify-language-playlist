@@ -1,12 +1,14 @@
 """Tests for language_utils module."""
 
 import pytest
+from unittest.mock import MagicMock, patch
 
 from spotify_language_playlist.language_utils import (
     LANGUAGE_NAME_TO_CODE,
     VALID_LANGUAGE_CODES,
     detect_language,
     filter_tracks_by_language,
+    get_genius_client,
     is_valid_language_input,
     resolve_language_code,
 )
@@ -85,6 +87,62 @@ class TestDetectLanguage:
         }
         result = detect_language(track)
         assert result is None or isinstance(result, str)
+
+    def test_uses_genius_lyrics_when_available(self):
+        mock_genius = MagicMock()
+        mock_song = MagicMock()
+        mock_song.lyrics = "Hello world this is an English song with many words"
+        mock_genius.search_song.return_value = mock_song
+
+        track = {"track": {"name": "Hello", "artists": [{"name": "Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+
+        mock_genius.search_song.assert_called_once_with("Hello", "Artist")
+        assert result == "en"
+
+    def test_falls_back_when_genius_song_not_found(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.return_value = None
+
+        track = {"track": {"name": "Hello beautiful world today", "artists": [{"name": "English Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+        assert result == "en"
+
+    def test_falls_back_when_genius_lyrics_empty(self):
+        mock_genius = MagicMock()
+        mock_song = MagicMock()
+        mock_song.lyrics = ""
+        mock_genius.search_song.return_value = mock_song
+
+        track = {"track": {"name": "Hello beautiful world today", "artists": [{"name": "English Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+        assert result == "en"
+
+    def test_falls_back_when_genius_raises_exception(self):
+        mock_genius = MagicMock()
+        mock_genius.search_song.side_effect = Exception("Network error")
+
+        track = {"track": {"name": "Hello beautiful world today", "artists": [{"name": "English Artist"}]}}
+        result = detect_language(track, genius=mock_genius)
+        assert result == "en"
+
+    def test_no_genius_client_uses_fallback(self):
+        track = {"track": {"name": "Hello world beautiful day", "artists": [{"name": "English Artist"}]}}
+        assert detect_language(track, genius=None) == "en"
+
+
+class TestGetGeniusClient:
+    def test_returns_none_when_token_not_set(self):
+        with patch.dict("os.environ", {}, clear=True):
+            assert get_genius_client() is None
+
+    def test_returns_client_when_token_set(self):
+        with patch.dict("os.environ", {"GENIUS_ACCESS_TOKEN": "fake_token"}):
+            with patch("spotify_language_playlist.language_utils.lyricsgenius.Genius") as mock_genius_cls:
+                mock_genius_cls.return_value = MagicMock()
+                client = get_genius_client()
+                mock_genius_cls.assert_called_once_with("fake_token", verbose=False, remove_section_headers=True)
+                assert client is not None
 
 
 class TestFilterTracksByLanguage:
