@@ -74,7 +74,7 @@ pytest
 
 ## Notes
 
-- Language is detected from the **track title and artist names**, which works
+- Language is detected from the **track title, album, and artist names**, which works
   well for most non-English languages.  Songs with very short or ambiguous
   titles may occasionally be misclassified.
 - The created playlist is **private** by default.
