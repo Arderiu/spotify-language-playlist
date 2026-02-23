@@ -88,14 +88,15 @@ def resolve_language_code(user_input: str) -> str:
 
 def detect_language(track: dict) -> str | None:
     """
-    Detect the language of a track from its name and artist names.
+    Detect the language of a track from its name, album name, and artist names.
 
     Returns an ISO 639-1 language code, or None if detection fails.
     """
     track_info = track.get("track", {})
     song_name = track_info.get("name", "")
+    album_name = track_info.get("album", {}).get("name", "")
     artists = " ".join(a.get("name", "") for a in track_info.get("artists", []))
-    text = f"{song_name} {artists}".strip()
+    text = f"{song_name} {album_name} {artists}".strip()
 
     if not text:
         return None
