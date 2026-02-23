@@ -1,5 +1,8 @@
 """Language detection utilities for spotify-language-playlist."""
 
+import os
+
+import lyricsgenius
 from langdetect import DetectorFactory, LangDetectException, detect
 
 # Make language detection deterministic across runs
@@ -86,17 +89,42 @@ def resolve_language_code(user_input: str) -> str:
     return LANGUAGE_NAME_TO_CODE.get(normalised, normalised)
 
 
-def detect_language(track: dict) -> str | None:
+def get_genius_client() -> lyricsgenius.Genius | None:
+    """Return a Genius client if GENIUS_ACCESS_TOKEN is set, otherwise None."""
+    token = os.getenv("GENIUS_ACCESS_TOKEN")
+    if not token:
+        return None
+    return lyricsgenius.Genius(token, verbose=False, remove_section_headers=True)
+
+
+def detect_language(track: dict, genius: lyricsgenius.Genius | None = None) -> str | None:
     """
-    Detect the language of a track from its name, album name, and artist names.
+    Detect the language of a track.
+
+    First tries to fetch lyrics from the Genius API and detect the language
+    from those.  If lyrics are unavailable (song not found or no Genius client),
+    falls back to detecting from the track name, album name, and artist names.
 
     Returns an ISO 639-1 language code, or None if detection fails.
     """
     track_info = track.get("track", {})
     song_name = track_info.get("name", "")
+    artists = track_info.get("artists", [])
+    primary_artist = artists[0].get("name", "") if artists else ""
+
+    if genius is not None and song_name:
+        try:
+            song = genius.search_song(song_name, primary_artist)
+            if song and song.lyrics:
+                return detect(song.lyrics)
+        except LangDetectException:
+            pass
+        except Exception:
+            pass
+
     album_name = track_info.get("album", {}).get("name", "")
-    artists = " ".join(a.get("name", "") for a in track_info.get("artists", []))
-    text = f"{song_name} {album_name} {artists}".strip()
+    all_artists = " ".join(a.get("name", "") for a in artists)
+    text = f"{song_name} {album_name} {all_artists}".strip()
 
     if not text:
         return None
@@ -120,11 +148,13 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
     total = len(tracks)
     matched_count = 0
 
+    genius = get_genius_client()
+
     # Always show progress
     print(f"Detecting languages across {total} songs…", end="", flush=True)
 
     for idx, track in enumerate(tracks):
-        detected = detect_language(track)
+        detected = detect_language(track, genius)
 
         if detected is None:
             print(
