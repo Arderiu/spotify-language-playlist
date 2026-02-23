@@ -50,7 +50,7 @@ containing only the tracks that match the language you specify.
 ## Usage
 
 ```bash
-python create_playlist.py
+python -m spotify_language_playlist
 ```
 
 The script will:

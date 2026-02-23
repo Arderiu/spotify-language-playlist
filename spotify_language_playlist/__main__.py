@@ -3,7 +3,7 @@
 Create a Spotify playlist from your liked songs filtered by language.
 
 Usage:
-    python create_playlist.py
+    python -m spotify_language_playlist
 
 The script will prompt you for a language name (e.g. "Spanish", "French"),
 fetch all your Spotify liked songs, detect the language of each track using
@@ -18,11 +18,19 @@ Requirements:
 
 import sys
 
-from language_utils import (filter_tracks_by_language, is_valid_language_input,
-                            resolve_language_code)
-from spotify_client import (add_tracks_to_playlist, create_playlist,
-                            fetch_liked_songs, fetch_playlist_track_uris,
-                            find_playlist_by_name, get_spotify_client)
+from spotify_language_playlist.language_utils import (
+    filter_tracks_by_language,
+    is_valid_language_input,
+    resolve_language_code,
+)
+from spotify_language_playlist.spotify_client import (
+    add_tracks_to_playlist,
+    create_playlist,
+    fetch_liked_songs,
+    fetch_playlist_track_uris,
+    find_playlist_by_name,
+    get_spotify_client,
+)
 
 
 def main() -> None:

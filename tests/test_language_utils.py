@@ -2,7 +2,7 @@
 
 import pytest
 
-from language_utils import (
+from spotify_language_playlist.language_utils import (
     LANGUAGE_NAME_TO_CODE,
     VALID_LANGUAGE_CODES,
     detect_language,
