@@ -117,9 +117,21 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
     matching_uris = []
     chinese_codes = {"zh-cn", "zh-tw"}
 
-    for track in tracks:
+    total = len(tracks)
+    matched_count = 0
+
+    # Always show progress
+    print(f"Detecting languages across {total} songs…", end="", flush=True)
+
+    for idx, track in enumerate(tracks):
         detected = detect_language(track)
+
         if detected is None:
+            print(
+                f"\rDetecting languages… {idx+1}/{total} checked, {matched_count} matched",
+                end="",
+                flush=True,
+            )
             continue
 
         if language_code in chinese_codes:
@@ -131,5 +143,14 @@ def filter_tracks_by_language(tracks: list[dict], language_code: str) -> list[st
             uri = track.get("track", {}).get("uri")
             if uri:
                 matching_uris.append(uri)
+                matched_count += 1
+
+        print(
+            f"\rDetecting languages… {idx+1}/{total} checked, {matched_count} matched",
+            end="",
+            flush=True,
+        )
+
+    print()  # newline after progress indicator
 
     return matching_uris

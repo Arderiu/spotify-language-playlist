@@ -18,15 +18,11 @@ Requirements:
 
 import sys
 
-from language_utils import filter_tracks_by_language, is_valid_language_input, resolve_language_code
-from spotify_client import (
-    add_tracks_to_playlist,
-    create_playlist,
-    fetch_liked_songs,
-    fetch_playlist_track_uris,
-    find_playlist_by_name,
-    get_spotify_client,
-)
+from language_utils import (filter_tracks_by_language, is_valid_language_input,
+                            resolve_language_code)
+from spotify_client import (add_tracks_to_playlist, create_playlist,
+                            fetch_liked_songs, fetch_playlist_track_uris,
+                            find_playlist_by_name, get_spotify_client)
 
 
 def main() -> None:
@@ -54,7 +50,6 @@ def main() -> None:
         print("No liked songs found in your library.")
         return
 
-    print(f"Detecting languages across {len(liked_songs)} songs…")
     matching_uris = filter_tracks_by_language(liked_songs, language_code)
 
     if not matching_uris:
@@ -66,11 +61,15 @@ def main() -> None:
     playlist_name = language_input.strip().title()
     playlist_id = find_playlist_by_name(sp, playlist_name)
     if playlist_id:
-        print(f"Playlist '{playlist_name}' already exists. Checking for new songs to add…")
+        print(
+            f"Playlist '{playlist_name}' already exists. Checking for new songs to add…"
+        )
         existing_uris = fetch_playlist_track_uris(sp, playlist_id)
         new_uris = [uri for uri in matching_uris if uri not in existing_uris]
         if not new_uris:
-            print(f"All {len(matching_uris)} detected song(s) are already in the playlist. Nothing to add.")
+            print(
+                f"All {len(matching_uris)} detected song(s) are already in the playlist. Nothing to add."
+            )
             print(f"Open it at: https://open.spotify.com/playlist/{playlist_id}")
             return
         print(f"Adding {len(new_uris)} new song(s) to '{playlist_name}'…")
@@ -80,7 +79,9 @@ def main() -> None:
         print(f"Creating playlist '{playlist_name}' with {len(matching_uris)} songs…")
         playlist_id = create_playlist(sp, playlist_name)
         add_tracks_to_playlist(sp, playlist_id, matching_uris)
-        print(f"Done! Playlist '{playlist_name}' created with {len(matching_uris)} tracks.")
+        print(
+            f"Done! Playlist '{playlist_name}' created with {len(matching_uris)} tracks."
+        )
     print(f"Open it at: https://open.spotify.com/playlist/{playlist_id}")
 
 
